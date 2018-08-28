@@ -1,0 +1,207 @@
+#!/usr/bin/env ruby
+
+begin
+  # Load bundler in dev environment. Rubygems generates a working binstub for stand-alone.
+  require  'bundler/setup'
+rescue LoadError
+end
+
+require 'base64'
+require 'clamp'
+require 'ec2_kube_detox'
+require 'k8s-client'
+require 'retriable'
+require 'rufus-scheduler'
+require 'time'
+require 'tty-which'
+
+Clamp.allow_options_after_parameters = true
+
+#spec.providerId
+#
+Clamp do
+
+  option '--aws-access-key', 'ACCESS_KEY', 'AWS access key ID', environment_variable: 'AWS_ACCESS_KEY_ID' do |aws_key|
+    ENV['AWS_ACCESS_KEY_ID'] = aws_key
+  end
+
+  option '--aws-secret-key', 'SECRET_KEY', 'AWS secret access key', environment_variable: 'AWS_SECRET_ACCESS_KEY' do |aws_secret|
+    ENV['AWS_SECRET_ACCESS_KEY'] = aws_secret
+  end
+
+  option '--kube-config', 'PATH', 'Kubernetes config path', environment_variable: 'KUBECONFIG' do |kubeconfig|
+    @kube_client = K8s::Client.config(K8s::Config.load_file(ENV['KUBECONFIG']))
+    kubeconfig
+  end
+
+  option '--kube-token', 'TOKEN', 'Kubernetes access token', environment_variable: 'KUBE_TOKEN' do
+    begin
+      Base64.strict_decode64(kube_token)
+    rescue ArgumentError # raised if token is not base64 encoded
+      kube_token
+    end
+  end
+
+  option '--kubectl', 'PATH', 'Specify path to kubectl (default: use system default)' do |kubectl|
+    File.executable?(kubectl) || signal_usage_error("kubectl at #{kubectl} not found or unusable")
+    kubectl
+  end
+
+  option '--kube-server', 'ADDRESS', 'Kubernetes API server address', environment_variable: 'KUBE_SERVER'
+  option '--kube-ca', 'DATA', 'Kubernetes certificate authority data', environment_variable: 'KUBE_CA'
+
+  option '--max-age', 'DURATION', 'Maximum age of server before draining and terminating. (default: 3d)' do |max_age|
+    if max_age.match?(/^\d+$/)
+      to_sec("#{max_age}s")
+    elsif max_age.match?(/^\d+[hmsdywM]$/)
+      to_sec(max_age)
+    else
+      signal_usage_error 'Invalid --max-age format'
+    end
+  end
+
+  option '--every', 'SCHEDULE', 'Run periodically, example: --every 1h', attribute_name: :scheduler_proc do |every|
+    unless every.match?(/^\d+[hmsdy]$/)
+      signal_usage_error "invalid format for --every. use <number><unit>, example: 30s, 1h, 3d"
+    end
+    proc do |&block|
+      Rufus::Scheduler.new.tap do |scheduler|
+        scheduler.every every do
+          puts "#{Time.now} Running scheduled ec2 kubernetes node detox .."
+          block.call
+        end
+      end.join
+    end
+  end
+
+  def debug(&block)
+    puts(yield) if debug?
+  end
+
+  def debug?
+    @debug ||= !ENV['DEBUG'].to_s.empty?
+  end
+
+  execute do
+    kubectl
+
+    scheduler do
+      debug { "Requesting node information .." }
+      kube_client.api('v1').resource('nodes').list.each do |node|
+        name = node.metadata&.name
+        debug { "Node name %p" % name }
+        next if name.nil?
+
+        if node.spec&.taints&.map(&:key)&.include?('node-role.kubernetes.io/master')
+          debug { "Node is master" }
+          next
+        end
+
+        provider_id = node.spec&.providerID
+        debug { "Node provider_id: %p" % provider_id }
+        next if provider_id.nil? || !provider_id.start_with?('aws:///')
+
+        region = provider_id[%r{aws:///(.+?)\/}, 1]
+        debug { "Node region: &p" % region }
+        next if region.nil?
+
+        node_id = provider_id[%r{aws:///.+?\/(.*)}, 1]
+        debug { "Node id: %p" % node_id }
+
+        age_secs = (Time.now - Time.xmlschema(node.metadata.creationTimestamp)).to_i
+        debug { "Node age: %d seconds" % age_secs }
+
+        if age_secs > max_age
+          puts("#{Time.now} !!! Node #{name} max-age expired, terminating !!!")
+
+          debug { "Draining node %s .." % name }
+          drain_node(name)
+          debug { "Done draining node %s" % name }
+
+          aws_instance = aws_client(region).instances(filters: [ { id: node_id } ]).first
+          debug { "Node aws_instance: %p" % aws_instance }
+          next if aws_instance.nil?
+
+          aws_instance.terminate
+          debug { "Waiting until node %s terminated .." % node_id }
+          aws_instance.wait_until_terminated
+          debug { "Node %s terminated .." % node_id }
+        else
+          debug { "Node %s has not reached best-before" % name }
+        end
+      end
+
+      debug { "Round completed .." }
+    end
+  end
+
+  def default_kubectl
+    TTY::Which.which('kubectl') || signal_usage_error('kubectl not found in PATH, use --kubectl <path> to set location manually')
+  end
+
+  def drain_node(name)
+    Retriable.retriable do
+      system(kubectl, "drain", '--timeout=5m', name) || raise("kubectl drain failed")
+    end
+  end
+
+  def default_scheduler_proc
+    proc { |&block| block.call }
+  end
+
+  def default_max_age
+    to_sec('3d')
+  end
+
+  def to_sec(duration_string)
+    num = duration_string[0..-2].to_i
+    case duration_string[-1]
+    when 's' then num
+    when 'm' then num * 60
+    when 'h' then num * 60 * 60
+    when 'd' then num * 60 * 60 * 24
+    when 'w' then num * 60 * 60 * 24 * 7
+    when 'M' then num * 60 * 60 * 24 * 30
+    when 'Y' then num * 60 * 60 * 24 * 365
+    else
+      signal_usage_error 'invalid --max-age format'
+    end
+  end
+
+  private
+
+  def scheduler(&block)
+    scheduler_proc.call(&block)
+  end
+
+  def kube_client
+    return @kube_client if @kube_client
+
+    if kube_token || kube_server || kube_ca
+      @kube_client = K8s::Client.new(K8s::Transport.config(build_kubeconfig_from_options))
+    elsif File.exist?(File.join(Dir.home, '.kube', 'config'))
+      @kube_client = K8s::Client.config(K8s::Config.load_file(File.join(Dir.home, '.kube', 'config')))
+    else
+      @kube_client = K8s::Client.in_cluster_config
+    end
+  end
+
+  def build_kubeconfig_from_options
+    unless kube_token && kube_server && kube_ca
+      signal_usage_error "--kube-token --kube-server and --kube-ca are required to be used together"
+    end
+
+    K8s::Config.new(
+      clusters: [ { name: 'kubernetes', cluster: { server: kube_server, certificate_authority_data: kube_ca } } ],
+      users: [ { name: 'ec2kubedetox', user: { token: kube_token } } ],
+      contexts: [ { name: 'ec2kubedetox', context: { cluster: 'kubernetes', user: 'ec2kubedetox' } } ],
+      preferences: {},
+      current_context: 'ec2kubedetox'
+    )
+  end
+
+  def aws_client(region)
+    # uses ENV variables, default config file or instance profile (when running on ec2) for credentials
+    Aws::Ec2::Client.new(region: region)
+  end
+end
