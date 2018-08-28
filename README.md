@@ -12,7 +12,7 @@ TODO: Write usage instructions here
 
 ## Development
 
-Most of the code is in [bin/ec2kubedetox](blob/master/bin/ec2_kube_detox)
+Most of the code is in [bin/ec2kubedetox](bin/ec2_kube_detox)
 
 ## Contributing
 
