@@ -15,11 +15,11 @@ require 'rufus-scheduler'
 require 'tempfile'
 require 'time'
 require 'tty-which'
+require 'logger'
 
-Clamp.allow_options_after_parameters = true
+Log = Logger.new($stdout)
+Log.level = Logger::DEBUG unless ENV["DEBUG"].to_s.empty?
 
-#spec.providerId
-#
 Clamp do
 
   option '--aws-access-key', 'ACCESS_KEY', 'AWS access key ID', environment_variable: 'AWS_ACCESS_KEY_ID' do |aws_key|
@@ -57,71 +57,64 @@ Clamp do
     proc do |&block|
       Rufus::Scheduler.new.tap do |scheduler|
         scheduler.every every do
-          puts "#{Time.now} Running scheduled ec2 kubernetes node detox .."
+          Log.info "Running scheduled ec2 kubernetes node detox .."
           block.call
         end
       end.join
     end
   end
 
-  def debug(&block)
-    puts(yield) if debug?
-  end
-
-  def debug?
-    @debug ||= !ENV['DEBUG'].to_s.empty?
-  end
-
   execute do
+    Log.debug { "Validating kube credentials" }
     kubectl
 
     scheduler do
-      debug { "Requesting node information .." }
+      Log.debug { "Requesting node information .." }
       kube_client.api('v1').resource('nodes').list.each do |node|
         name = node.metadata&.name
-        debug { "Node name %p" % name }
+        Log.debug { "Node name %p" % name }
         next if name.nil?
 
         if node.spec&.taints&.map(&:key)&.include?('node-role.kubernetes.io/master')
-          debug { "Node is master" }
+          Log.debug { "Node is master, skipping" }
           next
         end
 
         provider_id = node.spec&.providerID
-        debug { "Node provider_id: %p" % provider_id }
+        Log.debug { "Node provider_id: %p" % provider_id }
         next if provider_id.nil? || !provider_id.start_with?('aws:///')
 
         region = provider_id[%r{aws:///(.+?)\/}, 1]
-        debug { "Node region: &p" % region }
+        Log.debug { "Node region: &p" % region }
         next if region.nil?
 
         node_id = provider_id[%r{aws:///.+?\/(.*)}, 1]
-        debug { "Node id: %p" % node_id }
+        Log.debug { "Node id: %p" % node_id }
 
         age_secs = (Time.now - Time.xmlschema(node.metadata.creationTimestamp)).to_i
-        debug { "Node age: %d seconds" % age_secs }
+        Log.debug { "Node age: %d seconds" % age_secs }
 
         if age_secs > max_age
-          puts("#{Time.now} !!! Node #{name} max-age expired, terminating !!!")
+          Log.warn "!!! Node #{name} max-age expired, terminating !!!"
 
-          debug { "Draining node %s .." % name }
+          Log.debug { "Draining node %s .." % name }
           drain_node(name)
-          debug { "Done draining node %s" % name }
+          Log.debug { "Done draining node %s" % name }
 
           aws_instance = aws_client(region).instances(filters: [ { id: node_id } ]).first
-          debug { "Node aws_instance: %p" % aws_instance }
+          Log.debug { "Node aws_instance: %p" % aws_instance }
           next if aws_instance.nil?
 
           aws_instance.terminate
-          debug { "Waiting until node %s terminated .." % node_id }
+          Log.debug { "Waiting until node %s terminated .." % node_id }
           aws_instance.wait_until_terminated
-          debug { "Node %s terminated .." % node_id }
+          Log.debug { "Node %s terminated .." % node_id }
         else
-          debug { "Node %s has not reached best-before" % name }
+          Log.debug { "Node %s has not reached best-before" % name }
         end
       end
 
-      debug { "Round completed .." }
+      Log.debug { "Round completed .." }
     end
   end
 
@@ -131,12 +124,19 @@ Clamp do
 
   def drain_node(name)
     Retriable.retriable do
-      system(kubectl, "drain", '--kubeconfig=%s' % kube_config_file, '--timeout=5m', name) || raise("kubectl drain failed")
+      Log.debug { "Running kubectl drain" }
+      unless system(kubectl, "drain", '--kubeconfig=%s' % kube_config_file, '--timeout=5m', name)
+        Log.error "kubectl drain failed"
+        raise "kubectl drain failed"
+      end
     end
   end
 
   def default_scheduler_proc
-    proc { |&block| block.call }
+    proc do |&block|
+      Log.debug { "Running using single-shot proc" }
+      block.call
+    end
   end
 
   def default_max_age
@@ -172,20 +172,24 @@ Clamp do
     return @kube_config_file if @kube_config_file
 
     if kube_config
+      Log.debug { "using kubeconfig from --kube-config=%s" % kube_config }
       @kube_config_file = kube_config
     elsif kube_token || kube_server || kube_ca
+      Log.debug { "using kubeconfig built from --kube-*" }
       unless kube_token && kube_server && kube_ca
         signal_usage_error "--kube-token --kube-server and --kube-ca are required to be used together"
       end
-
       @kube_config_file = temp_kubeconfig(token: kube_token, server: kube_server, ca: kube_ca)
     elsif File.exist?(File.join(Dir.home, '.kube', 'config'))
+      Log.debug { "using kubeconfig from ~/.kube/config" }
       @kube_config_file = File.join(Dir.home, '.kube', 'config')
     elsif File.readable?('/etc/kubernetes/admin.conf')
+      Log.debug { "using kubeconfig from /etc/kubernetes/admin.conf" }
       @kube_config_file = '/etc/kubernetes/admin.conf'
     else
       credentials = in_cluster_config
       signal_usage_error 'missing configuration for kubernetes credentials' if credentials.nil?
+      Log.debug { "using kubeconfig from in_cluster_config" }
       @kube_config_file = temp_kubeconfig(credentials)
     end
   end
