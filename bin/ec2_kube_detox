@@ -12,6 +12,7 @@ require 'ec2_kube_detox'
 require 'k8s-client'
 require 'retriable'
 require 'rufus-scheduler'
+require 'tempfile'
 require 'time'
 require 'tty-which'
 
@@ -29,26 +30,15 @@ Clamp do
     ENV['AWS_SECRET_ACCESS_KEY'] = aws_secret
   end
 
-  option '--kube-config', 'PATH', 'Kubernetes config path', environment_variable: 'KUBECONFIG' do |kubeconfig|
-    @kube_client = K8s::Client.config(K8s::Config.load_file(ENV['KUBECONFIG']))
-    kubeconfig
-  end
-
-  option '--kube-token', 'TOKEN', 'Kubernetes access token', environment_variable: 'KUBE_TOKEN' do
-    begin
-      Base64.strict_decode64(kube_token)
-    rescue ArgumentError # raised if token is not base64 encoded
-      kube_token
-    end
-  end
-
   option '--kubectl', 'PATH', 'Specify path to kubectl (default: use system default)' do |kubectl|
     File.executable?(kubectl) || signal_usage_error("kubectl at #{kubectl} not found or unusable")
     kubectl
   end
 
+  option '--kube-config', 'PATH', 'Kubernetes config path', environment_variable: 'KUBECONFIG'
   option '--kube-server', 'ADDRESS', 'Kubernetes API server address', environment_variable: 'KUBE_SERVER'
   option '--kube-ca', 'DATA', 'Kubernetes certificate authority data', environment_variable: 'KUBE_CA'
+  option '--kube-token', 'TOKEN', 'Kubernetes access token', environment_variable: 'KUBE_TOKEN'
 
   option '--max-age', 'DURATION', 'Maximum age of server before draining and terminating. (default: 3d)' do |max_age|
     if max_age.match?(/^\d+$/)
@@ -141,7 +131,7 @@ Clamp do
 
   def drain_node(name)
     Retriable.retriable do
-      system(kubectl, "drain", '--timeout=5m', name) || raise("kubectl drain failed")
+      system(kubectl, "drain", '--kubeconfig=%s' % kube_config_file, '--timeout=5m', name) || raise("kubectl drain failed")
     end
   end
 
@@ -175,29 +165,66 @@ Clamp do
   end
 
   def kube_client
-    return @kube_client if @kube_client
+    @kube_client ||= K8s::Client.config(K8s::Config.load_file(kube_config_file))
+  end
 
-    if kube_token || kube_server || kube_ca
-      @kube_client = K8s::Client.new(K8s::Transport.config(build_kubeconfig_from_options))
+  def kube_config_file
+    return @kube_config_file if @kube_config_file
+
+    if kube_config
+      @kube_config_file = kube_config
+    elsif kube_token || kube_server || kube_ca
+      unless kube_token && kube_server && kube_ca
+        signal_usage_error "--kube-token --kube-server and --kube-ca are required to be used together"
+      end
+
+      @kube_config_file = temp_kubeconfig(token: kube_token, server: kube_server, ca: kube_ca)
     elsif File.exist?(File.join(Dir.home, '.kube', 'config'))
-      @kube_client = K8s::Client.config(K8s::Config.load_file(File.join(Dir.home, '.kube', 'config')))
+      @kube_config_file = File.join(Dir.home, '.kube', 'config')
+    elsif File.readable?('/etc/kubernetes/admin.conf')
+      @kube_config_file = '/etc/kubernetes/admin.conf'
     else
-      @kube_client = K8s::Client.in_cluster_config
+      credentials = in_cluster_config
+      signal_usage_error 'missing configuration for kubernetes credentials' if credentials.nil?
+      @kube_config_file = temp_kubeconfig(credentials)
     end
   end
 
-  def build_kubeconfig_from_options
-    unless kube_token && kube_server && kube_ca
-      signal_usage_error "--kube-token --kube-server and --kube-ca are required to be used together"
+  def in_cluster_config
+    credentials = {}
+
+    host = ENV['KUBERNETES_SERVICE_HOST']
+    port = ENV['KUBERNETES_SERVICE_PORT_HTTPS']
+    return nil unless host && port
+    credentials[:server] << "https://#{host}:#{port}"
+
+    ca_file = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+    return nil unless File.readable?(ca_file)
+    credentials[:ca] = File.read(ca_file)
+
+    token_file = '/var/run/secrets/kubernetes.io/serviceaccount/token'
+    return nil unless File.readable?(token_file)
+    credentials[:token] = File.read(token_file)
+
+    credentials
+  end
+
+  def temp_kubeconfig(token:, server:, ca:)
+    begin
+      token = Base64.strict_decode64(token)
+    rescue ArgumentError # raised if token is not base64 encoded
     end
 
-    K8s::Config.new(
-      clusters: [ { name: 'kubernetes', cluster: { server: kube_server, certificate_authority_data: kube_ca } } ],
-      users: [ { name: 'ec2kubedetox', user: { token: kube_token } } ],
+    tmpfle = Tempfile.new
+    tmpfile << YAML.dump(
+      clusters: [ { name: 'kubernetes', cluster: { server: server, certificate_authority_data: ca } } ],
+      users: [ { name: 'ec2kubedetox', user: { token: token } } ],
       contexts: [ { name: 'ec2kubedetox', context: { cluster: 'kubernetes', user: 'ec2kubedetox' } } ],
       preferences: {},
       current_context: 'ec2kubedetox'
     )
+    tmpfile.close
+    tmpfile.path
   end
 
   def aws_client(region)
