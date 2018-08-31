@@ -6,6 +6,7 @@ begin
 rescue LoadError
 end
 
+require 'aws-sdk-ec2'
 require 'base64'
 require 'clamp'
 require 'ec2_kube_detox'
@@ -18,7 +19,7 @@ require 'tty-which'
 require 'logger'
 
 Log = Logger.new($stdout)
-Log.level = Logger::DEBUG unless ENV["DEBUG"].to_s.empty?
+Log.level = ENV["DEBUG"].to_s.empty? ? Logger::INFO : Logger::DEBUG
 
 Clamp do
 
@@ -30,7 +31,7 @@ Clamp do
     ENV['AWS_SECRET_ACCESS_KEY'] = aws_secret
   end
 
-  option '--kubectl', 'PATH', 'Specify path to kubectl (default: use system default)' do |kubectl|
+  option '--kubectl', 'PATH', 'specify path to kubectl (default: use system default)' do |kubectl|
     File.executable?(kubectl) || signal_usage_error("kubectl at #{kubectl} not found or unusable")
     kubectl
   end
@@ -46,11 +47,15 @@ Clamp do
     elsif max_age.match?(/^\d+[hmsdywM]$/)
       to_sec(max_age)
     else
-      signal_usage_error 'Invalid --max-age format'
+      signal_usage_error 'invalid --max-age format'
     end
   end
 
-  option '--every', 'SCHEDULE', 'Run periodically, example: --every 1h', attribute_name: :scheduler_proc do |every|
+  option '--keep', 'COUNT', 'keep at least COUNT nodes', default: 0 do |count|
+    Integer(count)
+  end
+
+  option '--every', 'SCHEDULE', 'run periodically, example: --every 1h', attribute_name: :scheduler_proc do |every|
     unless every.match?(/^\d+[hmsdy]$/)
       signal_usage_error "invalid format for --every. use <number><unit>, example: 30s, 1h, 3d"
     end
@@ -64,51 +69,90 @@ Clamp do
     end
   end
 
+  option '--dry-run', :flag, "perform a dry-run, doesn't drain terminate any instances."
+
   execute do
     Log.debug { "Validating kube credentials" }
     kubectl
 
     scheduler do
       Log.debug { "Requesting node information .." }
-      kube_client.api('v1').resource('nodes').list.each do |node|
+
+      nodes = kube_client.api('v1').resource('nodes').list
+      nodes.delete_if { |node| node.spec&.taints&.map(&:key)&.include?('node-role.kubernetes.io/master') }
+
+      node_count = nodes.size
+      Log.debug { "Kubernetes API lists %d nodes" % node_count }
+
+      nodes.each do |node|
+        if node_count <= keep
+          Log.debug { "Node count equals to --keep #{keep}, breaking cycle" }
+          break
+        end
+
         name = node.metadata&.name
         Log.debug { "Node name %p" % name }
         next if name.nil?
 
-        if node.spec&.taints&.map(&:key)&.include?('node-role.kubernetes.io/master')
-          Log.debug { "Node is master, skipping" }
+        provider_id = node.spec&.providerID
+        Log.debug { "Node provider_id: %p" % provider_id }
+        if provider_id.nil? || !provider_id.start_with?('aws:///')
+          Log.debug { "Node %s does not have a providerID" % name }
           next
         end
 
-        provider_id = node.spec&.providerID
-        Log.debug { "Node provider_id: %p" % provider_id }
-        next if provider_id.nil? || !provider_id.start_with?('aws:///')
-
-        region = provider_id[%r{aws:///(.+?)\/}, 1]
-        Log.debug { "Node region: &p" % region }
-        next if region.nil?
+        region = node.metadata&.labels&.send(:'failure-domain.beta.kubernetes.io/region')
+        Log.debug { "Node region: %p" % region }
+        if region.nil?
+          Log.debug { "Node %s does not have the metadata.labels[failure-domain.beta.kubernetes.io/region] region name" % name }
+          next
+        end
 
         node_id = provider_id[%r{aws:///.+?\/(.*)}, 1]
         Log.debug { "Node id: %p" % node_id }
 
         age_secs = (Time.now - Time.xmlschema(node.metadata.creationTimestamp)).to_i
-        Log.debug { "Node age: %d seconds" % age_secs }
+        Log.debug { "Node %s (%s) age: %d seconds" % [name, provider_id, age_secs] }
 
         if age_secs > max_age
           Log.warn "!!! Node #{name} max-age expired, terminating !!!"
 
-          Log.debug { "Draining node %s .." % name }
-          drain_node(name)
-          Log.debug { "Done draining node %s" % name }
+          node_count -= 1
 
-          aws_instance = aws_client(region).instances(filters: [ { id: node_id } ]).first
-          Log.debug { "Node aws_instance: %p" % aws_instance }
-          next if aws_instance.nil?
+          if dry_run?
+            Log.info "[dry-run] Would drain node %s (%s)" % [name, node_id]
+          else
+            Log.debug { "Draining node %s (%s) .." % [name, node_id] }
+            drain_node(name)
+            Log.debug { "Done draining node %s (%s)" % [name, node_id] }
+          end
 
-          aws_instance.terminate
-          Log.debug { "Waiting until node %s terminated .." % node_id }
-          aws_instance.wait_until_terminated
-          Log.debug { "Node %s terminated .." % node_id }
+          ec2_instance = ec2_resource(region).instance(node_id)
+
+          Log.debug { "Node ec2 instance: %p" % ec2_instance }
+
+          if ec2_instance.nil? || !ec2_instance.exists?
+            Log.warn "ec2 instance %s (%s) not found" % [name, node_id]
+            next
+          end
+
+          case ec2_instance.state.code
+          when 48  # terminated
+            Log.info "Node %s (%s) has already been terminated" % [name, node_id]
+          else
+            begin
+              ec2_instance.terminate(dry_run: dry_run?)
+            rescue Aws::EC2::Errors::DryRunOperation
+              Log.info "[dry-run] Node termination dry-run check passed"
+            rescue => ex
+              if dry_run?
+                Log.error "[dry-run] Node %s (%s) termination dry-run check reports an error: %s : %s" % [name, node_id, ex, ex.message]
+              else
+                Log.error "Failed to terminate node %s (%s): %s : %s" % [name, node_id, ex, ex.message]
+                next
+              end
+            end
+          end
         else
           Log.debug { "Node %s has not reached best-before" % name }
         end
@@ -125,7 +169,7 @@ Clamp do
   def drain_node(name)
     Retriable.retriable do
       Log.debug { "Running kubectl drain" }
-      unless system(kubectl, "drain", '--kubeconfig=%s' % kube_config_file, '--timeout=5m', name)
+      unless system(kubectl, "drain", '--kubeconfig=%s' % kube_config_file, '--timeout=5m', '--ignore-daemonsets', name)
         Log.error "kubectl drain failed"
         raise "kubectl drain failed"
       end
@@ -231,8 +275,9 @@ Clamp do
     tmpfile.path
   end
 
-  def aws_client(region)
+  def ec2_resource(region)
     # uses ENV variables, default config file or instance profile (when running on ec2) for credentials
-    Aws::Ec2::Client.new(region: region)
+    # the option parser sets the env variables when options are given
+    Aws::EC2::Resource.new(region: region)
   end
 end
