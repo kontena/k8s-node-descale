@@ -45,7 +45,7 @@ Clamp do
   option '--kube-ca', 'DATA', 'Kubernetes certificate authority data', environment_variable: 'KUBE_CA'
   option '--kube-token', 'TOKEN', 'Kubernetes access token', environment_variable: 'KUBE_TOKEN'
 
-  option '--max-age', 'DURATION', 'Maximum age of server before draining and terminating. (default: 3d)' do |max_age|
+  option '--max-age', 'DURATION', 'Maximum age of server before draining and terminating. (default: 3d)', environment_variable: 'MAX_AGE' do |max_age|
     if max_age.match?(/^\d+$/)
       to_sec("#{max_age}s")
     elsif max_age.match?(/^\d+[hmsdywM]$/)
@@ -55,11 +55,11 @@ Clamp do
     end
   end
 
-  option '--keep', 'COUNT', 'keep at least COUNT nodes', default: 0 do |count|
+  option '--keep', 'COUNT', 'keep at least COUNT nodes', default: 0, environment_variable: 'KEEP_COUNT' do |count|
     Integer(count)
   end
 
-  option '--every', 'SCHEDULE', 'run periodically, example: --every 1h', attribute_name: :scheduler_proc do |every|
+  option '--every', 'SCHEDULE', 'run periodically, example: --every 1h', environment_variable: 'CHECK_PERIOD', attribute_name: :scheduler_proc do |every|
     unless every.match?(/^\d+[hmsdy]$/)
       signal_usage_error "invalid format for --every. use <number><unit>, example: 30s, 1h, 3d"
     end
@@ -77,7 +77,7 @@ Clamp do
     end
   end
 
-  option '--dry-run', :flag, "perform a dry-run, doesn't drain terminate any instances."
+  option '--dry-run', :flag, "perform a dry-run, doesn't drain terminate any instances.", environment_variable: 'DRY_RUN'
 
   execute do
     Log.debug { "Validating kube credentials" }
