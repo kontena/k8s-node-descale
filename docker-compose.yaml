@@ -1,13 +1,18 @@
-k8s-aws-detox:
-  build: .
-  environment:
-    - AWS_ACCESS_KEY_ID
-    - AWS_SECRET_ACCESS_KEY
-    - KUBE_SERVER
-    - KUBE_CA
-    - KUBE_TOKEN
-    - MAX_AGE
-    - KEEP_COUNT
-    - CHECK_PERIOD
-    - DRY_RUN
-  entrypoint: k8s-aws-detox
+version: '3'
+services:
+  k8s-aws-detox:
+    build:
+      context: .
+      args:
+        - KUBE_VERSION
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - KUBE_SERVER
+      - KUBE_CA
+      - KUBE_TOKEN
+      - MAX_AGE
+      - KEEP_COUNT
+      - CHECK_PERIOD
+      - DRY_RUN
+    entrypoint: k8s-aws-detox
