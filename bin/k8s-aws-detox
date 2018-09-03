@@ -27,6 +27,9 @@ Log = Logger.new($stdout)
 Log.level = ENV["DEBUG"].to_s.empty? ? Logger::INFO : Logger::DEBUG
 
 Clamp do
+
+  banner "Drains and terminates Kubernetes nodes running in Amazon EC2 after they reach the specified best-before date."
+
   option '--aws-access-key', 'ACCESS_KEY', 'AWS access key ID', environment_variable: 'AWS_ACCESS_KEY_ID' do |aws_key|
     ENV['AWS_ACCESS_KEY_ID'] = aws_key
   end
