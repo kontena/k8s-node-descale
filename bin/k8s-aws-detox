@@ -9,7 +9,7 @@ end
 require 'aws-sdk-ec2'
 require 'base64'
 require 'clamp'
-require 'ec2_kube_detox'
+require 'k8s_aws_detox'
 require 'k8s-client'
 require 'retriable'
 require 'rufus-scheduler'
@@ -18,11 +18,15 @@ require 'time'
 require 'tty-which'
 require 'logger'
 
+if ARGV.include?('-d')
+  ENV['DEBUG'] = 'true'
+  ARGV.delete('-d')
+end
+
 Log = Logger.new($stdout)
 Log.level = ENV["DEBUG"].to_s.empty? ? Logger::INFO : Logger::DEBUG
 
 Clamp do
-
   option '--aws-access-key', 'ACCESS_KEY', 'AWS access key ID', environment_variable: 'AWS_ACCESS_KEY_ID' do |aws_key|
     ENV['AWS_ACCESS_KEY_ID'] = aws_key
   end
@@ -62,8 +66,12 @@ Clamp do
     proc do |&block|
       Rufus::Scheduler.new.tap do |scheduler|
         scheduler.every every do
-          Log.info "Running scheduled ec2 kubernetes node detox .."
-          block.call
+          begin
+            Log.info "Running scheduled ec2 kubernetes node detox .."
+            block.call
+          rescue => ex
+            Log.error "operation failed: %s : %s" % [ex, ex.message]
+          end
         end
       end.join
     end
@@ -73,7 +81,12 @@ Clamp do
 
   execute do
     Log.debug { "Validating kube credentials" }
-    kubectl
+    begin
+      kubectl
+      kube_client.api('v1').resource('nodes').list
+    rescue => ex
+      signal_usage_error 'failed to connect to Kubernetes API, see --help for connection options (%s)' % ex.message
+    end
 
     scheduler do
       Log.debug { "Requesting node information .." }
@@ -179,7 +192,16 @@ Clamp do
   def default_scheduler_proc
     proc do |&block|
       Log.debug { "Running using single-shot proc" }
-      block.call
+      begin
+        block.call
+      rescue => ex
+        Log.error "operation failed: %s : %s" % [ex, ex.message]
+        if ENV["DEBUG"].to_s.empty?
+          exit 1
+        else
+          raise ex
+        end
+      end
     end
   end
 

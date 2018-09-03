@@ -1,19 +1,19 @@
 
 lib = File.expand_path("../lib", __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require "ec2_kube_detox/version"
+require "k8s_aws_detox/version"
 
 Gem::Specification.new do |spec|
-  spec.name          = "ec2_kube_detox"
-  spec.version       = Ec2KubeDetox::VERSION
+  spec.name          = "k8s_aws_detox"
+  spec.version       = K8sAwsDetox::VERSION
   spec.authors       = ["Kontena, Inc"]
   spec.email         = ["info@kontena.io"]
 
-  spec.summary       = %q{EC2 Kubernetes node clean up}
-  spec.description   = %q{Drains and terminates ec2 kubernetes nodes after exceeding their best-before date}
-  spec.homepage      = "https://github.com/kontena/ec2_kube_detox"
+  spec.summary       = %q{AWS EC2 Kubernetes node clean-up}
+  spec.description   = %q{Drains and terminates AWS EC2 Kubernetes nodes when they exceed their best-before date}
+  spec.homepage      = "https://github.com/kontena/k8s-aws-detox"
 
-  spec.files         = Dir["bin/*", "lib/**/*", "LICENSE", "README.md" "ec2_kube_detox.gemspec"]
+  spec.files         = Dir["bin/*", "lib/**/*", "LICENSE", "README.md" "k8s_aws_detox.gemspec"]
   spec.bindir        = "bin"
   spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
