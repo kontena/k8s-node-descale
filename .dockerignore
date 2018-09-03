@@ -1,0 +1,7 @@
+tf/
+spec/
+.git
+.travis.yml
+cluster.yml
+Gemfile
+Gemfile.lock

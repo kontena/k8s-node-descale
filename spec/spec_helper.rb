@@ -1,5 +1,5 @@
 require "bundler/setup"
-require "ec2_kube_detox"
+require "k8s-aws-detox"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

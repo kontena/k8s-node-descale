@@ -1,6 +1,7 @@
 
 lib = File.expand_path("../lib", __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+
 require "k8s_aws_detox/version"
 
 Gem::Specification.new do |spec|
@@ -8,6 +9,7 @@ Gem::Specification.new do |spec|
   spec.version       = K8sAwsDetox::VERSION
   spec.authors       = ["Kontena, Inc"]
   spec.email         = ["info@kontena.io"]
+  spec.license       = "Apache-2.0"
 
   spec.summary       = %q{AWS EC2 Kubernetes node clean-up}
   spec.description   = %q{Drains and terminates AWS EC2 Kubernetes nodes when they exceed their best-before date}

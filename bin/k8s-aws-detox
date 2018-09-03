@@ -35,7 +35,7 @@ Clamp do
     ENV['AWS_SECRET_ACCESS_KEY'] = aws_secret
   end
 
-  option '--kubectl', 'PATH', 'specify path to kubectl (default: use system default)' do |kubectl|
+  option '--kubectl', 'PATH', 'specify path to kubectl (default: $PATH)' do |kubectl|
     File.executable?(kubectl) || signal_usage_error("kubectl at #{kubectl} not found or unusable")
     kubectl
   end

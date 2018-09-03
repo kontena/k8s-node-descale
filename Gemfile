@@ -2,5 +2,5 @@ source "https://rubygems.org"
 
 git_source(:github) {|repo_name| "https://github.com/#{repo_name}" }
 
-# Specify your gem's dependencies in ec2_kube_detox.gemspec
+# Specify your gem's dependencies in k8s_aws_detox.gemspec
 gemspec
