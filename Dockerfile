@@ -1,4 +1,4 @@
-FROM ruby:2.5-alpine3.7 as builder
+FROM ruby:2.5-alpine3.7
 MAINTAINER Kontena, Inc. <info@kontena.io>
 
 WORKDIR /app
