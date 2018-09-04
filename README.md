@@ -70,7 +70,7 @@ The AWS credentials lookup order is:
 The Kubernetes credentials lookup order is:
 
 - `--kube-config` option or `KUBECONFIG` environment variable
-- `--kube-server`, `--kube-token` and `--kube-ca` options
+- `--kube-server`, `--kube-token` and `--kube-ca` options or `KUBE_SERVER`, `KUBE_TOKEN` and `KUBE_CA` environment variables
 - `~/.kube/config` configuration file
 - `/etc/kubernetes/admin.conf` configuration file
 - "in-cluster-configuration" when running on a Kubernetes node (`KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT_HTTPS` environment variables, `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt` and `/var/run/secrets/kubernetes.io/serviceaccount/token` configuration files)
