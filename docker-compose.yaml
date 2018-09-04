@@ -12,7 +12,7 @@ services:
       - KUBE_CA
       - KUBE_TOKEN
       - MAX_AGE
-      - KEEP_COUNT
+      - MAX_NODES_COUNT
       - CHECK_PERIOD
       - DRY_RUN
     entrypoint: k8s-aws-detox

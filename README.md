@@ -42,7 +42,7 @@ Options:
     --kube-ca DATA                Kubernetes certificate authority data (default: $KUBE_CA)
     --kube-token TOKEN            Kubernetes access token (default: $KUBE_TOKEN)
     --max-age DURATION            Maximum age of server before draining and terminating. (default: 3d) (default: $MAX_AGE)
-    --keep COUNT                  keep at least COUNT nodes (default: $KEEP_COUNT, or 0)
+    --max-nodes COUNT             drain maximum of COUNT nodes per cycle (default: $MAX_NODES_COUNT, or 1)
     --every SCHEDULE              run periodically, example: --every 1h (default: $CHECK_PERIOD)
     --dry-run                     perform a dry-run, doesn't drain terminate any instances. (default: $DRY_RUN)
     -h, --help                    print help

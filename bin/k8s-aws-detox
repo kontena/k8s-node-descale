@@ -58,7 +58,7 @@ Clamp do
     end
   end
 
-  option '--keep', 'COUNT', 'keep at least COUNT nodes', default: 0, environment_variable: 'KEEP_COUNT' do |count|
+  option '--max-nodes', 'COUNT', 'drain maximum of COUNT nodes per cycle', default: 1, environment_variable: 'MAX_NODES_COUNT' do |count|
     Integer(count)
   end
 
@@ -97,15 +97,11 @@ Clamp do
       nodes = kube_client.api('v1').resource('nodes').list
       nodes.delete_if { |node| node.spec&.taints&.map(&:key)&.include?('node-role.kubernetes.io/master') }
 
-      node_count = nodes.size
       Log.debug { "Kubernetes API lists %d nodes" % node_count }
 
-      nodes.each do |node|
-        if node_count <= keep
-          Log.debug { "Node count equals to --keep #{keep}, breaking cycle" }
-          break
-        end
+      node_count = 0
 
+      nodes.each do |node|
         name = node.metadata&.name
         Log.debug { "Node name %p" % name }
         next if name.nil?
@@ -132,8 +128,6 @@ Clamp do
 
         if age_secs > max_age
           Log.warn "!!! Node #{name} max-age expired, terminating !!!"
-
-          node_count -= 1
 
           if dry_run?
             Log.info "[dry-run] Would drain node %s (%s)" % [name, node_id]
@@ -168,6 +162,12 @@ Clamp do
                 next
               end
             end
+          end
+
+          node_count += 1
+          if node_count >= max_nodes
+            Log.info "Reached termination --max-nodes count, breaking cycle."
+            break
           end
         else
           Log.debug { "Node %s has not reached best-before" % name }
