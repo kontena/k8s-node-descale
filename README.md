@@ -50,7 +50,30 @@ Options:
     -h, --help                    print help
 ```
 
+### Scheduling
+
 You can use the `--every` option to let the program do its own scheduling or deploy it as a [cron job](https://kubernetes.io/docs/tasks/job/automated-tasks-with-cron-jobs/).
+
+### Configuring credentials
+
+#### AWS
+
+The AWS credentials lookup order is:
+
+- `--aws-access-key` and `--aws-secret-key` options
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables
+- The shared credentials file at ~/.aws/credentials
+- From the instance profile when running on EC2
+
+#### Kube API
+
+The Kubernetes credentials lookup order is:
+
+- `--kube-config` option or `KUBECONFIG` environment variable
+- `--kube-server`, `--kube-token` and `--kube-ca` options
+- `~/.kube/config` configuration file
+- `/etc/kubernetes/admin.conf` configuration file
+- "in-cluster-configuration" when running on a Kubernetes node (`KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT_HTTPS` environment variables, `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt` and `/var/run/secrets/kubernetes.io/serviceaccount/token` configuration files)
 
 ## Development
 
