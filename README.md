@@ -75,10 +75,6 @@ The Kubernetes credentials lookup order is:
 - `/etc/kubernetes/admin.conf` configuration file
 - "in-cluster-configuration" when running on a Kubernetes node (`KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT_HTTPS` environment variables, `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt` and `/var/run/secrets/kubernetes.io/serviceaccount/token` configuration files)
 
-## Development
-
-Most of the code is in [bin/k8s-aws-detox](bin/k8s-aws-detox).
-
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/kontena/k8s-aws-detox
