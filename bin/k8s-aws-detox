@@ -48,7 +48,7 @@ Clamp do
   option '--kube-ca', 'DATA', 'Kubernetes certificate authority data', environment_variable: 'KUBE_CA'
   option '--kube-token', 'TOKEN', 'Kubernetes access token', environment_variable: 'KUBE_TOKEN'
 
-  option '--max-age', 'DURATION', 'Maximum age of server before draining and terminating. (default: 3d)', environment_variable: 'MAX_AGE' do |max_age|
+  option '--max-age', 'DURATION', 'maximum age of server before draining and terminating (default: 3d)', environment_variable: 'MAX_AGE' do |max_age|
     if max_age.match?(/^\d+$/)
       to_sec("#{max_age}s")
     elsif max_age.match?(/^\d+[hmsdywM]$/)
