@@ -45,14 +45,14 @@ Options:
     --kube-token TOKEN            Kubernetes access token (default: $KUBE_TOKEN)
     --max-age DURATION            maximum age of server before draining and terminating (default: $MAX_AGE, or "3d")
     --max-nodes COUNT             drain maximum of COUNT nodes per cycle (default: $MAX_NODES_COUNT, or 1)
-    --every SCHEDULE              run periodically, example: --every 1h (default: $CHECK_PERIOD)
+    --check-period SCHEDULE       run periodically, example: --every 1h (default: $CHECK_PERIOD)
     --dry-run                     perform a dry-run, doesn't drain terminate any instances. (default: $DRY_RUN, or false)
     -h, --help                    print help
 ```
 
 ### Scheduling
 
-You can use the `--every` option to let the program do its own scheduling or deploy it as a [cron job](https://kubernetes.io/docs/tasks/job/automated-tasks-with-cron-jobs/).
+You can use the `--check-period` option to let the program do its own scheduling or deploy it as a [cron job](https://kubernetes.io/docs/tasks/job/automated-tasks-with-cron-jobs/).
 
 ### Configuring credentials
 

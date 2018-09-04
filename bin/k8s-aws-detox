@@ -53,9 +53,9 @@ Clamp do
     Integer(count)
   end
 
-  option '--every', 'SCHEDULE', 'run periodically, example: --every 1h', environment_variable: 'CHECK_PERIOD', attribute_name: :scheduler_proc do |every|
+  option '--check-period', 'SCHEDULE', 'run periodically, example: --check-period 1h', environment_variable: 'CHECK_PERIOD', attribute_name: :scheduler_proc do |every|
     unless every.match?(/^\d+[hmsdy]$/)
-      signal_usage_error "invalid format for --every. use <number><unit>, example: 30s, 1h, 3d"
+      signal_usage_error "invalid format for --check-period. use <number><unit>, example: 30s, 1h, 3d"
     end
     proc do |&block|
       Rufus::Scheduler.new.tap do |scheduler|
