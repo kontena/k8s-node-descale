@@ -62,7 +62,7 @@ The AWS credentials lookup order is:
 
 - `--aws-access-key` and `--aws-secret-key` options
 - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables
-- The shared credentials file at ~/.aws/credentials
+- The shared credentials file at `~/.aws/credentials`
 - From the instance profile when running on EC2
 
 #### Kube API
