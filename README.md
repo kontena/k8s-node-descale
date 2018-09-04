@@ -1,6 +1,6 @@
 # k8s-aws-detox
 
-Drains + terminates AWS EC2 nodes after they reach the specified best-before age. To be used in an [Auto Scaling Group](https://docs.aws.amazon.com/autoscaling/ec2/userguide/AutoScalingGroup.html) so that the node will get replaced with a fresh one when there is demand.
+Drains and terminates AWS EC2 nodes after they reach the specified best-before age. To be used in an [Auto Scaling Group](https://docs.aws.amazon.com/autoscaling/ec2/userguide/AutoScalingGroup.html) so that the node will get replaced with a fresh one when there is demand.
 
 ## Installation
 
