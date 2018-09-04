@@ -33,6 +33,8 @@ $ KUBE_VERSION=1.11.1 docker-compose run -rm k8s-aws-detox
 Usage:
     k8s-aws-detox [OPTIONS]
 
+  Drains and terminates Kubernetes nodes running in Amazon EC2 after they reach the specified best-before date.
+
 Options:
     --aws-access-key ACCESS_KEY   AWS access key ID (default: $AWS_ACCESS_KEY_ID)
     --aws-secret-key SECRET_KEY   AWS secret access key (default: $AWS_SECRET_ACCESS_KEY)
@@ -41,10 +43,10 @@ Options:
     --kube-server ADDRESS         Kubernetes API server address (default: $KUBE_SERVER)
     --kube-ca DATA                Kubernetes certificate authority data (default: $KUBE_CA)
     --kube-token TOKEN            Kubernetes access token (default: $KUBE_TOKEN)
-    --max-age DURATION            Maximum age of server before draining and terminating. (default: 3d) (default: $MAX_AGE)
+    --max-age DURATION            maximum age of server before draining and terminating (default: $MAX_AGE, or "3d")
     --max-nodes COUNT             drain maximum of COUNT nodes per cycle (default: $MAX_NODES_COUNT, or 1)
     --every SCHEDULE              run periodically, example: --every 1h (default: $CHECK_PERIOD)
-    --dry-run                     perform a dry-run, doesn't drain terminate any instances. (default: $DRY_RUN)
+    --dry-run                     perform a dry-run, doesn't drain terminate any instances. (default: $DRY_RUN, or false)
     -h, --help                    print help
 ```
 

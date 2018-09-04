@@ -48,16 +48,7 @@ Clamp do
   option '--kube-ca', 'DATA', 'Kubernetes certificate authority data', environment_variable: 'KUBE_CA'
   option '--kube-token', 'TOKEN', 'Kubernetes access token', environment_variable: 'KUBE_TOKEN'
 
-  option '--max-age', 'DURATION', 'maximum age of server before draining and terminating (default: 3d)', environment_variable: 'MAX_AGE' do |max_age|
-    if max_age.match?(/^\d+$/)
-      to_sec("#{max_age}s")
-    elsif max_age.match?(/^\d+[hmsdywM]$/)
-      to_sec(max_age)
-    else
-      signal_usage_error 'invalid --max-age format'
-    end
-  end
-
+  option '--max-age', 'DURATION', 'maximum age of server before draining and terminating', default: '3d', environment_variable: 'MAX_AGE'
   option '--max-nodes', 'COUNT', 'drain maximum of COUNT nodes per cycle', default: 1, environment_variable: 'MAX_NODES_COUNT' do |count|
     Integer(count)
   end
@@ -80,7 +71,7 @@ Clamp do
     end
   end
 
-  option '--dry-run', :flag, "perform a dry-run, doesn't drain terminate any instances.", environment_variable: 'DRY_RUN'
+  option '--dry-run', :flag, "perform a dry-run, doesn't drain terminate any instances.", default: false, environment_variable: 'DRY_RUN'
 
   execute do
     Log.debug { "Validating kube credentials" }
@@ -126,7 +117,7 @@ Clamp do
         age_secs = (Time.now - Time.xmlschema(node.metadata.creationTimestamp)).to_i
         Log.debug { "Node %s (%s) age: %d seconds" % [name, provider_id, age_secs] }
 
-        if age_secs > max_age
+        if age_secs > max_age_seconds
           Log.warn "!!! Node #{name} max-age expired, terminating !!!"
 
           if dry_run?
@@ -208,8 +199,8 @@ Clamp do
     end
   end
 
-  def default_max_age
-    to_sec('3d')
+  def max_age_seconds
+    @max_age_seconds ||= to_sec(max_age)
   end
 
   def to_sec(duration_string)
