@@ -46,7 +46,7 @@ Options:
     --max-age DURATION            maximum age of server before draining and terminating (default: $MAX_AGE, or "3d")
     --max-nodes COUNT             drain maximum of COUNT nodes per cycle (default: $MAX_NODES_COUNT, or 1)
     --check-period SCHEDULE       run periodically, example: --every 1h (default: $CHECK_PERIOD)
-    --dry-run                     perform a dry-run, doesn't drain terminate any instances. (default: $DRY_RUN, or false)
+    --dry-run                     perform a dry-run, doesn't drain or terminate any instances. (default: $DRY_RUN, or false)
     -h, --help                    print help
 ```
 

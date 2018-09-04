@@ -71,7 +71,7 @@ Clamp do
     end
   end
 
-  option '--dry-run', :flag, "perform a dry-run, doesn't drain terminate any instances.", default: false, environment_variable: 'DRY_RUN'
+  option '--dry-run', :flag, "perform a dry-run, doesn't drain or terminate any instances.", default: false, environment_variable: 'DRY_RUN'
 
   execute do
     Log.debug { "Validating kube credentials" }
