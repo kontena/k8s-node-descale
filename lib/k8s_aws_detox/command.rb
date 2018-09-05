@@ -45,6 +45,8 @@ module K8sAwsDetox
       Scheduler.new(period)
     end
 
+    option '--[no-]drain', :flag, 'perform node drain before terminate', default: true, environment_variable: 'DRAIN'
+
     option '--dry-run', :flag, "perform a dry-run, doesn't drain or terminate any instances.", default: false, environment_variable: 'DRY_RUN'
     option ['-v', '--version'], :flag, "Display k8s-aws-detox version" do
       puts "k8s-aws-detox version #{K8sAwsDetox::VERSION}"
@@ -111,12 +113,16 @@ module K8sAwsDetox
               Log.info "Node %s (%s) has already been terminated" % [name, node_id]
               next
             else
-              if dry_run?
-                Log.info "[dry-run] Would drain node %s (%s)" % [name, node_id]
+              if drain?
+                if dry_run?
+                  Log.info "[dry-run] Would drain node %s (%s)" % [name, node_id]
+                else
+                  Log.debug { "Draining node %s (%s) .." % [name, node_id] }
+                  drain_node(name)
+                  Log.debug { "Done draining node %s (%s)" % [name, node_id] }
+                end
               else
-                Log.debug { "Draining node %s (%s) .." % [name, node_id] }
-                drain_node(name)
-                Log.debug { "Done draining node %s (%s)" % [name, node_id] }
+                Log.debug { "Skipping drain because --no-drain given" }
               end
 
               begin

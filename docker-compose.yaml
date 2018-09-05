@@ -15,4 +15,5 @@ services:
       - MAX_NODES_COUNT
       - CHECK_PERIOD
       - DRY_RUN
+      - DRAIN
     entrypoint: k8s-aws-detox
