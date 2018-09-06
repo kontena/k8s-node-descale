@@ -31,7 +31,15 @@ module K8sAwsDetox
     option '--kube-config', 'PATH', 'Kubernetes config path', environment_variable: 'KUBECONFIG'
     option '--kube-server', 'ADDRESS', 'Kubernetes API server address', environment_variable: 'KUBE_SERVER'
     option '--kube-ca', 'DATA', 'Kubernetes certificate authority data', environment_variable: 'KUBE_CA'
-    option '--kube-token', 'TOKEN', 'Kubernetes access token', environment_variable: 'KUBE_TOKEN'
+    option '--kube-token', 'TOKEN', 'Kubernetes access token (Base64 encoded)', environment_variable: 'KUBE_TOKEN' do |token|
+      begin
+        Base64.decode64(token).tap do |decoded|
+          raise ArgumentError unless Base64.encode64(decoded) == token
+        end
+      rescue ArgumentError
+        signal_usage_error '--kube-token does not seem to be base64 encoded'
+      end
+    end
 
     option '--max-age', 'DURATION', 'maximum age of server before draining and terminating', default: '3d', environment_variable: 'MAX_AGE'
     option '--max-nodes', 'COUNT', 'drain maximum of COUNT nodes per cycle', default: 1, environment_variable: 'MAX_NODES_COUNT' do |count|
