@@ -1,0 +1,21 @@
+pipeline:
+  test:
+    image: ruby:2.5
+    commands:
+      - bundle install --path bundler
+      - bundle exec bin/k8s-aws-detox --version
+  docker_latest: &latest
+    registry: quay.io
+    image: plugins/docker
+    secrets: [ docker_username, docker_password ]
+    repo: quay.io/kontena/k8s-aws-detox
+    dockerfile: Dockerfile
+    auto_tag: true
+    when:
+      branch: ['master']
+      event: ['push']
+  docker_release:
+    <<: *latest
+    when:
+      event: ['tag']
+
