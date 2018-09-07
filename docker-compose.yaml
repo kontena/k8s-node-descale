@@ -16,4 +16,6 @@ services:
       - CHECK_PERIOD
       - DRY_RUN
       - DRAIN
+      - KUBERNETES_SERVICE_HOST
+      - KUBERNETES_SERVICE_PORT_HTTPS
     entrypoint: k8s-aws-detox
