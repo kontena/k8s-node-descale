@@ -126,9 +126,9 @@ module K8sAwsDetox
                   Log.info "[dry-run] Would drain node %s (%s)" % [name, node_id]
                 else
                   Log.debug { "Draining node %s (%s) .." % [name, node_id] }
-                  drain_node(name)
-                  Log.debug { "Done draining node %s (%s)" % [name, node_id] }
                 end
+                drain_node(name)
+                Log.debug { "Done draining node %s (%s)" % [name, node_id] }
               else
                 Log.debug { "Skipping drain because --no-drain given" }
               end
@@ -172,7 +172,7 @@ module K8sAwsDetox
     end
 
     def drain_node(name)
-      kubectl.drain(name)
+      kubectl.drain(name, dry_run: dry?)
     end
 
     def default_scheduler
