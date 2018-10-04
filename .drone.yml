@@ -4,7 +4,7 @@ pipeline:
     commands:
       - bundle install --path bundler
       - bundle exec bin/k8s-node-descale --version
-  docker_latest: &latest
+  docker_latest:
     registry: quay.io
     image: plugins/docker
     secrets: [ docker_username, docker_password ]
@@ -15,7 +15,12 @@ pipeline:
       branch: ['master']
       event: ['push']
   docker_release:
-    <<: *latest
+    registry: quay.io
+    image: plugins/docker
+    secrets: [ docker_username, docker_password ]
+    repo: quay.io/kontena/k8s-node-descale
+    dockerfile: Dockerfile
+    auto_tag: true
     when:
       event: ['tag']
 
