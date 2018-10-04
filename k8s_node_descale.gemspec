@@ -1,11 +1,12 @@
 
-lib = File.expand_path("../lib", __FILE__)
-$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+require 'pathname'
+lib_path = File.expand_path('../lib', Pathname.new(__FILE__).realpath)
+$LOAD_PATH.unshift lib_path unless $LOAD_PATH.include?(lib_path)
 
 require "k8s_node_descale/version"
 
 Gem::Specification.new do |spec|
-  spec.name          = "k8s_asg_detox"
+  spec.name          = "k8s_node_descale"
   spec.version       = K8sNodeDescale::VERSION
   spec.authors       = ["Kontena, Inc"]
   spec.email         = ["info@kontena.io"]
@@ -19,6 +20,8 @@ Gem::Specification.new do |spec|
   spec.bindir        = "bin"
   spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
+
+  spec.required_ruby_version = '>= 2.4.0'
 
   spec.add_runtime_dependency "clamp", "~> 1.3"
   spec.add_runtime_dependency "k8s-client", "~> 0.3"

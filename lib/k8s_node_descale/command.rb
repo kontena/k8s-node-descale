@@ -1,3 +1,5 @@
+require 'k8s_node_descale/version'
+
 require 'base64'
 require 'clamp'
 require 'k8s-client'
@@ -8,7 +10,6 @@ require 'tty-which'
 require_relative 'temp_kubeconfig'
 require_relative 'kubectl'
 require_relative 'scheduler'
-require_relative 'version'
 
 module K8sNodeDescale
   class Command < Clamp::Command
