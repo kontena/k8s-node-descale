@@ -1,28 +1,28 @@
-# k8s-aws-detox
+# k8s-node-descale
 
-Drains and terminates AWS EC2 nodes after they reach the specified best-before age. To be used in an [Auto Scaling Group](https://docs.aws.amazon.com/autoscaling/ec2/userguide/AutoScalingGroup.html) so that the node will get replaced with a fresh one when there is demand.
+Drains Kubernetes nodes after they reach the specified best-before age. To be used together with an autoscaler so that the node will get replaced with a fresh one when there is demand.
 
 ## Installation
 
 ### Building manually:
 
 ```
-$ gem build k8s_aws_detox.gemspec
-$ gem install k8s_aws_detox*.gem
-$ k8s-aws-detox
+$ gem build k8s_node_descale.gemspec
+$ gem install k8s_node_desacale*.gem
+$ k8s-node-descale
 ```
 
 ### Docker:
 
 ```
-$ docker build -t detox --build-arg KUBE_VERSION=1.11.1 .
-$ docker run -t detox k8s-aws-detox
+$ docker build -t descale --build-arg KUBE_VERSION=1.11.1 .
+$ docker run -t descale
 ```
 
 ### Docker Compose:
 
 ```
-$ KUBE_VERSION=1.11.1 docker-compose run -rm k8s-aws-detox
+$ KUBE_VERSION=1.11.1 docker-compose run -rm
 ```
 
 ## Usage
@@ -31,13 +31,11 @@ $ KUBE_VERSION=1.11.1 docker-compose run -rm k8s-aws-detox
 
 ```
 Usage:
-    k8s-aws-detox [OPTIONS]
+    k8s-node-descale [OPTIONS]
 
-  Drains and terminates Kubernetes nodes running in Amazon EC2 after they reach the specified best-before date.
+  Drains Kubernetes nodes after they reach the specified best-before date.
 
 Options:
-    --aws-access-key ACCESS_KEY   AWS access key ID (default: $AWS_ACCESS_KEY_ID)
-    --aws-secret-key SECRET_KEY   AWS secret access key (default: $AWS_SECRET_ACCESS_KEY)
     --kubectl PATH                specify path to kubectl (default: $PATH)
     --kube-config PATH            Kubernetes config path (default: $KUBECONFIG)
     --kube-server ADDRESS         Kubernetes API server address (default: $KUBE_SERVER)
@@ -56,15 +54,6 @@ You can use the `--check-period` option to let the program do its own scheduling
 
 ### Configuring credentials
 
-#### AWS
-
-The AWS credentials lookup order is:
-
-- `--aws-access-key` and `--aws-secret-key` options
-- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables
-- The shared credentials file at `~/.aws/credentials`
-- From the instance profile when running on EC2
-
 #### Kube API
 
 The Kubernetes credentials lookup order is:
@@ -77,5 +66,5 @@ The Kubernetes credentials lookup order is:
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/kontena/k8s-aws-detox
+Bug reports and pull requests are welcome on GitHub at https://github.com/kontena/k8s-node-descale
 

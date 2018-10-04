@@ -1,6 +1,6 @@
 require 'retriable'
 
-module K8sAwsDetox
+module K8sNodeDescale
   class Kubectl
     attr_reader :path, :kubeconfig_file
 

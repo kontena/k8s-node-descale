@@ -1,7 +1,7 @@
 require 'tempfile'
 require 'yaml'
 
-module K8sAwsDetox
+module K8sNodeDescale
   class TempKubeconfig
     def self.in_cluster_config
       host = ENV['KUBERNETES_SERVICE_HOST']
@@ -33,10 +33,10 @@ module K8sAwsDetox
       tmpfle = Tempfile.new
       tmpfile << YAML.dump(
         clusters: [ { name: 'kubernetes', cluster: { server: server, certificate_authority_data: ca } } ],
-        users: [ { name: 'k8sawsdetox', user: { token: token } } ],
-        contexts: [ { name: 'k8sawsdetox', context: { cluster: 'kubernetes', user: 'k8sawsdetox' } } ],
+        users: [ { name: 'k8snodedescale', user: { token: token } } ],
+        contexts: [ { name: 'k8snodedescale', context: { cluster: 'kubernetes', user: 'k8sawsdetox' } } ],
         preferences: {},
-        current_context: 'k8sawsdetox'
+        current_context: 'k8snodedescale'
       )
       tmpfile.close
       tmpfile.path

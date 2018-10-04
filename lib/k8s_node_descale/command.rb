@@ -1,4 +1,3 @@
-require 'aws-sdk-ec2'
 require 'base64'
 require 'clamp'
 require 'k8s-client'
@@ -11,17 +10,9 @@ require_relative 'kubectl'
 require_relative 'scheduler'
 require_relative 'version'
 
-module K8sAwsDetox
+module K8sNodeDescale
   class Command < Clamp::Command
-    banner "Drains and terminates Kubernetes nodes running in Amazon EC2 after they reach the specified best-before date."
-
-    option '--aws-access-key', 'ACCESS_KEY', 'AWS access key ID', environment_variable: 'AWS_ACCESS_KEY_ID' do |aws_key|
-      ENV['AWS_ACCESS_KEY_ID'] = aws_key
-    end
-
-    option '--aws-secret-key', 'SECRET_KEY', 'AWS secret access key', environment_variable: 'AWS_SECRET_ACCESS_KEY' do |aws_secret|
-      ENV['AWS_SECRET_ACCESS_KEY'] = aws_secret
-    end
+    banner "Kubernetes Auto-scaling Group Detox - Drains after they reach their specified best-before date."
 
     option '--kubectl', 'PATH', 'specify path to kubectl (default: $PATH)', attribute_name: :kubectl_path do |kubectl|
       File.executable?(kubectl) || signal_usage_error("kubectl at #{kubectl} not found or unusable")
@@ -41,7 +32,7 @@ module K8sAwsDetox
       end
     end
 
-    option '--max-age', 'DURATION', 'maximum age of server before draining and terminating', default: '3d', environment_variable: 'MAX_AGE'
+    option '--max-age', 'DURATION', 'maximum age of server before draining', default: '3d', environment_variable: 'MAX_AGE'
     option '--max-nodes', 'COUNT', 'drain maximum of COUNT nodes per cycle', default: 1, environment_variable: 'MAX_NODES_COUNT' do |count|
       Integer(count)
     end
@@ -53,11 +44,9 @@ module K8sAwsDetox
       Scheduler.new(period)
     end
 
-    option '--[no-]drain', :flag, 'perform node drain before terminate', default: true, environment_variable: 'DRAIN'
-
-    option '--dry-run', :flag, "perform a dry-run, doesn't drain or terminate any instances.", default: false, environment_variable: 'DRY_RUN'
-    option ['-v', '--version'], :flag, "Display k8s-aws-detox version" do
-      puts "k8s-aws-detox version #{K8sAwsDetox::VERSION}"
+    option '--dry-run', :flag, "perform a dry-run, doesn't drain any instances.", default: false, environment_variable: 'DRY_RUN'
+    option ['-v', '--version'], :flag, "Display k8s-node-descale version" do
+      puts "k8s-node-descale version #{K8sNodeDescale::VERSION}"
       exit 0
     end
 
@@ -85,75 +74,19 @@ module K8sAwsDetox
           Log.debug { "Node name %p" % name }
           next if name.nil?
 
-          provider_id = node.spec&.providerID
-          Log.debug { "Node provider_id: %p" % provider_id }
-          if provider_id.nil? || !provider_id.start_with?('aws:///')
-            Log.debug { "Node %s does not have a providerID" % name }
-            next
-          end
-
-          region = node.metadata&.labels&.send(:'failure-domain.beta.kubernetes.io/region')
-          Log.debug { "Node region: %p" % region }
-          if region.nil?
-            Log.debug { "Node %s does not have the metadata.labels[failure-domain.beta.kubernetes.io/region] region name" % name }
-            next
-          end
-
-          node_id = provider_id[%r{aws:///.+?\/(.*)}, 1]
-          Log.debug { "Node id: %p" % node_id }
-
           age_secs = (Time.now - Time.xmlschema(node.metadata.creationTimestamp)).to_i
-          Log.debug { "Node %s (%s) age: %d seconds" % [name, provider_id, age_secs] }
+          Log.debug { "Node %s age: %d seconds" % [name, age_secs] }
 
           if age_secs > max_age_seconds
             Log.warn "!!! Node #{name} max-age expired, terminating !!!"
 
-            ec2_instance = ec2_resource(region).instance(node_id)
-            Log.debug { "Node ec2 instance: %p" % ec2_instance }
-
-            if ec2_instance.nil? || !ec2_instance.exists?
-              Log.warn "ec2 instance %s (%s) not found" % [name, node_id]
-              next
-            end
-
-            case ec2_instance.state.code
-            when 48  # terminated
-              Log.info "Node %s (%s) has already been terminated" % [name, node_id]
-              next
+            if dry_run?
+              Log.info "[dry-run] Would drain node %s" % name
             else
-              if drain?
-                if dry_run?
-                  Log.info "[dry-run] Would drain node %s (%s)" % [name, node_id]
-                else
-                  Log.debug { "Draining node %s (%s) .." % [name, node_id] }
-                end
-                drain_node(name)
-                Log.debug { "Done draining node %s (%s)" % [name, node_id] }
-              else
-                Log.debug { "Skipping drain because --no-drain given" }
-              end
-
-              begin
-                Log.debug { "Terminating node %s (%s)" % [name, node_id] }
-                ec2_instance.terminate(dry_run: dry_run?)
-              rescue Aws::EC2::Errors::DryRunOperation
-                Log.info "[dry-run] Node termination dry-run check passed"
-              rescue => ex
-                if dry_run?
-                  Log.error "[dry-run] Node %s (%s) termination dry-run check reports an error: %s : %s" % [name, node_id, ex, ex.message]
-                else
-                  Log.error "Failed to terminate node %s (%s): %s : %s" % [name, node_id, ex, ex.message]
-                  next
-                end
-              end
-
-              terminated_count += 1
-              if terminated_count >= max_nodes
-                Log.info "Reached termination --max-nodes count, breaking cycle."
-                break
-              end
-
+              Log.debug { "Draining node %s .." % name }
             end
+            drain_node(name)
+            Log.debug { "Done draining node %s" % name }
           else
             Log.debug { "Node %s has not reached best-before" % name }
           end
@@ -228,12 +161,6 @@ module K8sAwsDetox
         Log.debug { "using kubeconfig from in_cluster_config" }
         @kube_config_file = temp_config.path
       end
-    end
-
-    def ec2_resource(region)
-      # uses ENV variables, default config file or instance profile (when running on ec2) for credentials
-      # the option parser sets the env variables when options are given
-      Aws::EC2::Resource.new(region: region)
     end
   end
 end

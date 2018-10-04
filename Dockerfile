@@ -7,8 +7,8 @@ WORKDIR /app
 COPY . .
 ADD https://storage.googleapis.com/kubernetes-release/release/v${KUBE_VERSION}/bin/linux/amd64/kubectl /usr/local/bin/kubectl
 RUN chmod +x /usr/local/bin/kubectl && \
-    gem build k8s_aws_detox.gemspec && \
-    gem install --no-document k8s_aws_detox*.gem && \
+    gem build k8s_node_descale.gemspec && \
+    gem install --no-document k8s_node_descale*.gem && \
     rm -rf /app
 USER nobody
-CMD ["k8s-aws-detox"]
+CMD ["k8s-node-descale"]

@@ -1,6 +1,6 @@
 require 'rufus-scheduler'
 
-module K8sAwsDetox
+module K8sNodeDescale
   class Scheduler
 
     attr_reader :period

@@ -1,13 +1,11 @@
 version: '3'
 services:
-  k8s-aws-detox:
+  k8s-node-descale:
     build:
       context: .
       args:
         - KUBE_VERSION
     environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
       - KUBE_SERVER
       - KUBE_CA
       - KUBE_TOKEN
@@ -15,7 +13,6 @@ services:
       - MAX_NODES_COUNT
       - CHECK_PERIOD
       - DRY_RUN
-      - DRAIN
       - KUBERNETES_SERVICE_HOST
       - KUBERNETES_SERVICE_PORT_HTTPS
-    entrypoint: k8s-aws-detox
+    entrypoint: k8s-node-descale

@@ -17,5 +17,5 @@ if ARGV.include?('-d')
   ARGV.delete('-d')
 end
 
-require File.join(lib_path, 'k8s_aws_detox')
-K8sAwsDetox::Command.run
+require File.join(lib_path, 'k8s_node_descale')
+K8sNodeDescale::Command.run

@@ -1,5 +1,5 @@
 require "bundler/setup"
-require "k8s-aws-detox"
+require "k8s_node_descale"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
