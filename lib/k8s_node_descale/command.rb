@@ -91,7 +91,7 @@ module K8sNodeDescale
     end
 
     def drain_node(name)
-      kubectl.drain(name, dry_run: dry?)
+      kubectl.drain(name, dry_run: dry_run?)
     end
 
     def default_scheduler
