@@ -7,7 +7,6 @@ require 'tempfile'
 require 'time'
 require 'tty-which'
 
-require_relative 'temp_kubeconfig'
 require_relative 'kubectl'
 require_relative 'scheduler'
 
@@ -21,18 +20,6 @@ module K8sNodeDescale
     end
 
     option '--kube-config', 'PATH', 'Kubernetes config path', environment_variable: 'KUBECONFIG'
-    option '--kube-server', 'ADDRESS', 'Kubernetes API server address', environment_variable: 'KUBE_SERVER'
-    option '--kube-ca', 'DATA', 'Kubernetes certificate authority data', environment_variable: 'KUBE_CA'
-    option '--kube-token', 'TOKEN', 'Kubernetes access token (Base64 encoded)', environment_variable: 'KUBE_TOKEN' do |token|
-      begin
-        Base64.decode64(token).tap do |decoded|
-          raise ArgumentError unless Base64.encode64(decoded) == token
-        end
-      rescue ArgumentError
-        signal_usage_error '--kube-token does not seem to be base64 encoded'
-      end
-    end
-
     option '--max-age', 'DURATION', 'maximum age of server before draining', default: '3d', environment_variable: 'MAX_AGE'
     option '--max-nodes', 'COUNT', 'drain maximum of COUNT nodes per cycle', default: 1, environment_variable: 'MAX_NODES_COUNT' do |count|
       Integer(count)
@@ -68,8 +55,6 @@ module K8sNodeDescale
 
         Log.debug { "Kubernetes API lists %d nodes" % nodes.size }
 
-        terminated_count = 0
-
         nodes.each do |node|
           name = node.metadata&.name
           Log.debug { "Node name %p" % name }
@@ -102,7 +87,7 @@ module K8sNodeDescale
     end
 
     def kubectl
-      @kubectl ||= Kubectl.new(kubectl_path, kube_config_file)
+      @kubectl ||= Kubectl.new(kubectl_path)
     end
 
     def drain_node(name)
@@ -134,34 +119,17 @@ module K8sNodeDescale
 
     private
 
+    # @return [K8s::Client]
     def kube_client
-      @kube_client ||= K8s::Client.config(K8s::Config.load_file(kube_config_file))
-    end
-
-    def kube_config_file
-      return @kube_config_file if @kube_config_file
+      return @kube_client if @kube_client
 
       if kube_config
-        Log.debug { "using kubeconfig from --kube-config=%s" % kube_config }
-        @kube_config_file = kube_config
-      elsif kube_token || kube_server || kube_ca
-        Log.debug { "using kubeconfig built from --kube-*" }
-        unless kube_token && kube_server && kube_ca
-          signal_usage_error "--kube-token --kube-server and --kube-ca are required to be used together"
-        end
-        @kube_config_file = TempKubeconfig.new(kube_token, kube_server, kube_ca).path
-      elsif File.exist?(File.join(Dir.home, '.kube', 'config'))
-        Log.debug { "using kubeconfig from ~/.kube/config" }
-        @kube_config_file = File.join(Dir.home, '.kube', 'config')
-      elsif File.readable?('/etc/kubernetes/admin.conf')
-        Log.debug { "using kubeconfig from /etc/kubernetes/admin.conf" }
-        @kube_config_file = '/etc/kubernetes/admin.conf'
+        @kube_client = K8s::Client.config(K8s::Config.load_file(kube_config))
       else
-        temp_config = TempKubeconfig.in_cluster_config
-        signal_usage_error 'missing configuration for kubernetes credentials' if temp_config.nil?
-        Log.debug { "using kubeconfig from in_cluster_config" }
-        @kube_config_file = temp_config.path
+        @kube_client = K8s::Client.in_cluster_config
       end
+
+      @kube_client
     end
   end
 end

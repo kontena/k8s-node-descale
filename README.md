@@ -38,9 +38,6 @@ Usage:
 Options:
     --kubectl PATH                specify path to kubectl (default: $PATH)
     --kube-config PATH            Kubernetes config path (default: $KUBECONFIG)
-    --kube-server ADDRESS         Kubernetes API server address (default: $KUBE_SERVER)
-    --kube-ca DATA                Kubernetes certificate authority data (default: $KUBE_CA)
-    --kube-token TOKEN            Kubernetes access token (default: $KUBE_TOKEN)
     --max-age DURATION            maximum age of server before draining and terminating (default: $MAX_AGE, or "3d")
     --max-nodes COUNT             drain maximum of COUNT nodes per cycle (default: $MAX_NODES_COUNT, or 1)
     --check-period SCHEDULE       run periodically, example: --every 1h (default: $CHECK_PERIOD)
@@ -59,9 +56,6 @@ You can use the `--check-period` option to let the program do its own scheduling
 The Kubernetes credentials lookup order is:
 
 - `--kube-config` option or `KUBECONFIG` environment variable
-- `--kube-server`, `--kube-token` and `--kube-ca` options or `KUBE_SERVER`, `KUBE_TOKEN` and `KUBE_CA` environment variables
-- `~/.kube/config` configuration file
-- `/etc/kubernetes/admin.conf` configuration file
 - "in-cluster-configuration" when running on a Kubernetes node (`KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT_HTTPS` environment variables, `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt` and `/var/run/secrets/kubernetes.io/serviceaccount/token` configuration files)
 
 ## Contributing
