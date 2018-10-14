@@ -11,9 +11,9 @@ module K8sNodeDescale
     def drain(node_name, dry_run: false)
       Retriable.retriable do
         Log.debug { "Running kubectl drain" }
-        cmd = [path, "drain", '--timeout=5m', '--ignore-daemonsets']
+        cmd = [path, "drain", '--timeout=5m', '--ignore-daemonsets', '--delete-local-data']
         cmd << '--dry-run' if dry_run
-        cmd << node-name
+        cmd << node_name
         unless system(*cmd)
           Log.error "kubectl drain failed"
           raise "kubectl drain failed"
