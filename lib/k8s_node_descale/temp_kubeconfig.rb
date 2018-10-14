@@ -30,7 +30,7 @@ module K8sNodeDescale
     end
 
     def temp_kubeconfig
-      tmpfle = Tempfile.new
+      tmpfile = Tempfile.new
       tmpfile << YAML.dump(
         clusters: [ { name: 'kubernetes', cluster: { server: server, certificate_authority_data: ca } } ],
         users: [ { name: 'k8snodedescale', user: { token: token } } ],
