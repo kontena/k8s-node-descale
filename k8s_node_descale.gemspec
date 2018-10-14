@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   spec.description   = %q{Drains Kubernetes nodes when they exceed their best-before date}
   spec.homepage      = "https://github.com/kontena/k8s-node-descale"
 
-  spec.files         = Dir["bin/*", "lib/**/*", "LICENSE", "README.md" "k8s_asg_detox.gemspec"]
+  spec.files         = Dir["bin/*", "lib/**/*", "LICENSE", "README.md" "k8s_node_descale.gemspec"]
   spec.bindir        = "bin"
   spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
