@@ -12,7 +12,7 @@ require_relative 'scheduler'
 
 module K8sNodeDescale
   class Command < Clamp::Command
-    banner "Kubernetes Auto-scaling Group Detox - Drains after they reach their specified best-before date."
+    banner "Kubernetes Auto-scaling Group Descale - Drains after they reach their specified best-before date."
 
     option '--kubectl', 'PATH', 'specify path to kubectl (default: $PATH)', attribute_name: :kubectl_path do |kubectl|
       File.executable?(kubectl) || signal_usage_error("kubectl at #{kubectl} not found or unusable")

@@ -17,7 +17,7 @@ module K8sNodeDescale
       Rufus::Scheduler.new.tap do |scheduler|
         scheduler.every period do
           begin
-            Log.info "Running scheduled ec2 kubernetes node detox .."
+            Log.info "Running scheduled ec2 kubernetes node descale .."
             yield
           rescue => ex
             Log.error "operation failed: %s : %s" % [ex, ex.message]
