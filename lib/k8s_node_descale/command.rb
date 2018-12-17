@@ -19,7 +19,10 @@ module K8sNodeDescale
       kubectl
     end
 
-    option '--kube-config', 'PATH', 'Kubernetes config path', environment_variable: 'KUBECONFIG'
+    option '--kube-config', 'PATH', 'Kubernetes config path', environment_variable: 'KUBECONFIG' do |kube_config|
+      ENV['KUBECONFIG'] = kube_config
+    end
+
     option '--max-age', 'DURATION', 'maximum age of server before draining', default: '3d', environment_variable: 'MAX_AGE'
     option '--max-nodes', 'COUNT', 'drain maximum of COUNT nodes per cycle', default: 1, environment_variable: 'MAX_NODES_COUNT' do |count|
       Integer(count)
