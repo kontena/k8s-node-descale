@@ -6,13 +6,8 @@ services:
       args:
         - KUBE_VERSION
     environment:
-      - KUBE_SERVER
-      - KUBE_CA
-      - KUBE_TOKEN
       - MAX_AGE
       - MAX_NODES_COUNT
       - CHECK_PERIOD
       - DRY_RUN
-      - KUBERNETES_SERVICE_HOST
-      - KUBERNETES_SERVICE_PORT_HTTPS
     entrypoint: k8s-node-descale
