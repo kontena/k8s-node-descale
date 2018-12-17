@@ -47,6 +47,7 @@ module K8sNodeDescale
         signal_usage_error 'failed to connect to Kubernetes API, see --help for connection options (%s)' % ex.message
       end
 
+      terminated_count = 0
       scheduler.run do
         Log.debug { "Requesting node information .." }
 
@@ -73,6 +74,12 @@ module K8sNodeDescale
             end
             drain_node(name)
             Log.debug { "Done draining node %s" % name }
+
+            terminated_count += 1
+            if terminated_count >= max_nodes
+              Log.info "Reached termination --max-nodes count, breaking cycle."
+              break
+            end
           else
             Log.debug { "Node %s has not reached best-before" % name }
           end
