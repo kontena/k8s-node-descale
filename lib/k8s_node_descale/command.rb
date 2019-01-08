@@ -42,6 +42,7 @@ module K8sNodeDescale
     end
 
     execute do
+      Log.info "Running Kubernetes Node Descale version #{K8sNodeDescale::VERSION}"
       Log.debug { "Validating kube credentials" }
       begin
         kubectl
@@ -52,7 +53,7 @@ module K8sNodeDescale
 
       terminated_count = 0
       scheduler.run do
-        Log.debug { "Requesting node information .." }
+        Log.info "Requesting node information .."
 
         nodes = kube_client.api('v1').resource('nodes').list
         nodes.delete_if { |node| node.spec&.taints&.map(&:key)&.include?('node-role.kubernetes.io/master') }
@@ -73,7 +74,7 @@ module K8sNodeDescale
             if dry_run?
               Log.info "[dry-run] Would drain node %s" % name
             else
-              Log.debug { "Draining node %s .." % name }
+              Log.info "Draining node %s .." % name
             end
             drain_node(name)
             Log.debug { "Done draining node %s" % name }
@@ -90,6 +91,7 @@ module K8sNodeDescale
 
         Log.debug { "Round completed .." }
       end
+      Log.info "Done"
     end
 
     def default_kubectl_path
