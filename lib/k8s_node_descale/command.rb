@@ -51,11 +51,11 @@ module K8sNodeDescale
         signal_usage_error 'failed to connect to Kubernetes API, see --help for connection options (%s)' % ex.message
       end
 
-      terminated_count = 0
       scheduler.run do
+        terminated_count = 0
         Log.info "Requesting node information .."
 
-        nodes = kube_client.api('v1').resource('nodes').list
+        nodes = kube_client.api('v1').resource('nodes').list.sort_by { |node| Time.xmlschema(node.metadata.creationTimestamp) }
         nodes.delete_if { |node| node.spec&.taints&.map(&:key)&.include?('node-role.kubernetes.io/master') }
 
         Log.debug { "Kubernetes API lists %d nodes" % nodes.size }
